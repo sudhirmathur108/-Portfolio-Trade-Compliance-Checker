@@ -7,9 +7,6 @@ does not place orders or connect to a broker. It evaluates each trade
 independently against a portfolio reference snapshot and produces a decision
 and an explanation.
 
-For a beginner-friendly, file-by-file explanation with a worked example and
-trainer questions, read the [Project Guide](PROJECT_GUIDE.md).
-
 The supplied trade file contains 20 proposals. Actual portfolio balances,
 holdings, restrictions, and concentration limits were not supplied. Therefore,
 `data/portfolio_reference.json` is intentionally an empty JSON object (`{}`),

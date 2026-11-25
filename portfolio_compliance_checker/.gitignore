@@ -3,6 +3,7 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+PROJECT_GUIDE.md
 output/compliance_results.csv
 output/compliance_results.xlsx
 logs/*.log
