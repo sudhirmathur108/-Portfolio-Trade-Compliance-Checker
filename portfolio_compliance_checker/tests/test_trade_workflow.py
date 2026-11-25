@@ -1,3 +1,5 @@
+"""Tests for rule order, independent trades, and the complete application run."""
+
 import json
 from decimal import Decimal
 from pathlib import Path
@@ -18,6 +20,7 @@ from src.report_generator import generate_reports
 
 
 def test_invalid_trade_precedes_restricted_check(portfolio_reference, valid_trade):
+    """Step 1's invalid-data reason takes priority over a restriction."""
     valid_trade.update(quantity="0")
     portfolio_reference["restricted_securities"] = ["AAA"]
     assert evaluate_trade(valid_trade, portfolio_reference)["reason"] == (
@@ -26,6 +29,7 @@ def test_invalid_trade_precedes_restricted_check(portfolio_reference, valid_trad
 
 
 def test_restricted_precedes_insufficient_cash(portfolio_reference, valid_trade):
+    """Step 2's restriction reason takes priority over low buy cash."""
     portfolio_reference["restricted_securities"] = ["AAA"]
     portfolio_reference["cash_balance"] = Decimal("0")
     assert evaluate_trade(valid_trade, portfolio_reference)["reason"] == (
@@ -34,12 +38,14 @@ def test_restricted_precedes_insufficient_cash(portfolio_reference, valid_trade)
 
 
 def test_missing_reference_is_never_approved(valid_trade):
+    """No trade can be approved when its portfolio data is missing."""
     result = evaluate_trade(valid_trade, None)
     assert result["decision"] == REJECTED
     assert "reference data is missing" in result["reason"]
 
 
 def test_invalid_reference_is_never_approved(valid_trade, portfolio_reference):
+    """Incomplete portfolio data produces an explicit data-error rejection."""
     del portfolio_reference["cash_balance"]
     result = evaluate_trade(valid_trade, portfolio_reference)
     assert result["decision"] == REJECTED
@@ -47,6 +53,7 @@ def test_invalid_reference_is_never_approved(valid_trade, portfolio_reference):
 
 
 def test_trades_are_evaluated_independently(valid_trade, portfolio_reference):
+    """One result does not change the holdings used for the next trade."""
     first = dict(valid_trade, quantity="90")
     second = dict(valid_trade, quantity="2")
     results = evaluate_all_trades([first, second], {"TEST": portfolio_reference})
@@ -57,6 +64,7 @@ def test_trades_are_evaluated_independently(valid_trade, portfolio_reference):
 
 
 def test_cash_is_not_deducted_between_trades(valid_trade, portfolio_reference):
+    """Both orders see the same cash snapshot, not a running cash balance."""
     portfolio_reference["cash_balance"] = Decimal("20")
     trades = [dict(valid_trade, quantity="2"), dict(valid_trade, quantity="2")]
     results = evaluate_all_trades(trades, {"TEST": portfolio_reference})
@@ -64,6 +72,7 @@ def test_cash_is_not_deducted_between_trades(valid_trade, portfolio_reference):
 
 
 def test_affordability_precedes_concentration(portfolio_reference, valid_trade):
+    """Step 4's cash rejection occurs before the concentration rule."""
     portfolio_reference["cash_balance"] = Decimal("19")
     portfolio_reference["max_position_pct"] = Decimal("0")
     result = evaluate_trade(valid_trade, portfolio_reference)
@@ -71,6 +80,7 @@ def test_affordability_precedes_concentration(portfolio_reference, valid_trade):
 
 
 def test_application_runs_with_synthetic_reference_data(tmp_path, monkeypatch, capsys):
+    """Run all 20 real trades through the app using test-only portfolio data."""
     project_root = Path(__file__).resolve().parents[1]
     trades_path = tmp_path / "proposed_trades.csv"
     trades_path.write_text(
@@ -79,6 +89,7 @@ def test_application_runs_with_synthetic_reference_data(tmp_path, monkeypatch, c
         ),
         encoding="utf-8",
     )
+    # These balances and holdings are synthetic and live only in this test.
     portfolio_ids = ("POR001", "POR002", "POR003", "POR004", "POR005")
     references = {
         portfolio_id: {
@@ -118,6 +129,7 @@ def test_application_runs_with_synthetic_reference_data(tmp_path, monkeypatch, c
         lambda results: generate_reports(results, output_directory),
     )
 
+    # The complete command should return success and produce both report files.
     assert main_module.main() == 0
     summary_text = capsys.readouterr().out
     assert "Total trades processed: 20" in summary_text
@@ -140,6 +152,7 @@ def test_application_runs_with_synthetic_reference_data(tmp_path, monkeypatch, c
     }
     assert csv_results.loc[6, "reason"] == INVALID_TRADE_REASON
     input_rows = pd.read_csv(trades_path, dtype=str, keep_default_na=False)
+    # Every input field must remain unchanged in the CSV audit report.
     pd.testing.assert_frame_equal(
         csv_results.loc[:, input_rows.columns],
         input_rows,

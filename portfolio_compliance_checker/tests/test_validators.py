@@ -1,3 +1,5 @@
+"""Tests for validating the basic fields in each proposed trade."""
+
 from decimal import Decimal
 
 import pytest
@@ -10,6 +12,7 @@ from src.validators import validate_trade_input
     ["action", "quantity", "price"],
 )
 def test_missing_trade_parameter_is_invalid(missing_field):
+    """A missing action, quantity, or price must fail the first rule."""
     trade = {"action": "Buy", "quantity": "1", "price": "10"}
     del trade[missing_field]
     assert not validate_trade_input(trade)[0]
@@ -23,6 +26,7 @@ def test_missing_trade_parameter_is_invalid(missing_field):
     ],
 )
 def test_valid_trade_data(action, quantity, price):
+    """Both supported actions accept positive numeric values."""
     valid, parsed_quantity, parsed_price = validate_trade_input(
         {"action": action, "quantity": quantity, "price": price}
     )
@@ -46,6 +50,7 @@ def test_valid_trade_data(action, quantity, price):
     ],
 )
 def test_invalid_trade_data(action, quantity, price):
+    """Zero, negative, malformed, or unsupported values are rejected."""
     valid, _, _ = validate_trade_input(
         {"action": action, "quantity": quantity, "price": price}
     )

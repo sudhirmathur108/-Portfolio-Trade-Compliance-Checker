@@ -1,3 +1,5 @@
+"""Tests for the buy-only portfolio concentration calculation."""
+
 from decimal import Decimal
 
 import pytest
@@ -8,6 +10,7 @@ from src.config import APPROVED, MANUAL_SIGN_OFF, REJECTED
 
 
 def calculate(trade, reference):
+    """Call the calculator with Decimal values from a small test example."""
     return calculate_concentration(
         trade,
         reference,
@@ -19,6 +22,7 @@ def calculate(trade, reference):
 
 
 def test_concentration_below_limit_is_approved(valid_trade):
+    """A buy below the cap passes the full compliance workflow."""
     reference = {
         "cash_balance": "1000",
         "restricted_securities": [],
@@ -29,6 +33,7 @@ def test_concentration_below_limit_is_approved(valid_trade):
 
 
 def test_exact_concentration_limit_is_approved(valid_trade):
+    """A buy exactly at the configured cap is approved."""
     valid_trade.update(security_id="NEW", quantity="5", price="10")
     reference = {
         "cash_balance": "100",
@@ -42,6 +47,7 @@ def test_exact_concentration_limit_is_approved(valid_trade):
 
 
 def test_high_precision_exact_concentration_limit_is_approved():
+    """A long exact value must not be rounded into a false limit breach."""
     valid_trade = {
         "portfolio_id": "TEST",
         "security_id": "NEW",
@@ -62,6 +68,7 @@ def test_high_precision_exact_concentration_limit_is_approved():
 
 
 def test_concentration_above_limit_requires_manual_signoff(valid_trade):
+    """A buy above the cap is sent for manual approval, not rejected."""
     valid_trade.update(security_id="NEW", quantity="5", price="10")
     reference = {
         "cash_balance": "50",
@@ -73,6 +80,7 @@ def test_concentration_above_limit_requires_manual_signoff(valid_trade):
 
 
 def test_new_security_has_zero_existing_quantity(valid_trade):
+    """A security absent from holdings starts with zero existing shares."""
     valid_trade.update(security_id="NEW", quantity="1", price="10")
     reference = {
         "cash_balance": "100",
@@ -84,6 +92,7 @@ def test_new_security_has_zero_existing_quantity(valid_trade):
 
 
 def test_existing_quantity_is_included(valid_trade):
+    """The new buy is added to the shares already held."""
     valid_trade.update(security_id="AAA", quantity="2", price="10")
     reference = {
         "cash_balance": "70",
@@ -97,6 +106,7 @@ def test_existing_quantity_is_included(valid_trade):
 
 
 def test_other_holdings_use_their_own_market_prices(valid_trade):
+    """Other securities are valued with their own stored prices."""
     valid_trade.update(security_id="AAA", quantity="1", price="10")
     reference = {
         "cash_balance": "100",
@@ -111,6 +121,7 @@ def test_other_holdings_use_their_own_market_prices(valid_trade):
 
 
 def test_traded_security_is_excluded_from_other_holdings(valid_trade):
+    """The traded security is not also counted as an 'other' holding."""
     valid_trade.update(security_id="AAA", quantity="1", price="10")
     reference = {
         "cash_balance": "100",
@@ -125,6 +136,7 @@ def test_traded_security_is_excluded_from_other_holdings(valid_trade):
 
 
 def test_duplicate_holdings_are_aggregated(valid_trade):
+    """Repeated rows for the bought security add together."""
     valid_trade.update(security_id="AAA", quantity="1", price="10")
     reference = {
         "cash_balance": "70",
@@ -139,6 +151,7 @@ def test_duplicate_holdings_are_aggregated(valid_trade):
 
 
 def test_zero_total_value_raises_clear_error(valid_trade):
+    """A zero or negative portfolio total must not cause division by zero."""
     valid_trade.update(security_id="AAA", quantity="1", price="1")
     reference = {
         "cash_balance": "-1",
@@ -160,6 +173,7 @@ def test_zero_total_value_raises_clear_error(valid_trade):
 
 
 def test_concentration_only_applies_to_buy(valid_trade, portfolio_reference):
+    """Sell decisions have no concentration percentage."""
     valid_trade.update(action="Sell", quantity="1")
     portfolio_reference["max_position_pct"] = Decimal("0")
     result = evaluate_trade(valid_trade, portfolio_reference)
@@ -168,6 +182,7 @@ def test_concentration_only_applies_to_buy(valid_trade, portfolio_reference):
 
 
 def test_invalid_reference_values_cannot_be_approved(valid_trade):
+    """An invalid holding price produces a data error instead of approval."""
     reference = {
         "cash_balance": "100",
         "restricted_securities": [],

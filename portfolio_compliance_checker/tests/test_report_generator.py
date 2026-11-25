@@ -1,3 +1,5 @@
+"""Tests for CSV/Excel reports and the printed summary."""
+
 import pandas as pd
 
 from src.config import APPROVED, MANUAL_SIGN_OFF, REJECTED
@@ -5,6 +7,7 @@ from src.report_generator import build_summary, generate_reports
 
 
 def sample_results():
+    """Make one example of each decision type for report tests."""
     return [
         {
             "trade_row_number": 1,
@@ -46,6 +49,7 @@ def sample_results():
 
 
 def test_csv_and_excel_reports_are_generated(tmp_path):
+    """Both reports contain the decisions in the same order as the input."""
     csv_path, excel_path = generate_reports(sample_results(), tmp_path)
     assert csv_path.exists()
     assert excel_path.exists()
@@ -61,6 +65,7 @@ def test_csv_and_excel_reports_are_generated(tmp_path):
 
 
 def test_summary_counts_reconcile_by_portfolio():
+    """Overall decision counts add up and portfolio counts are separated."""
     summary = build_summary(sample_results())
     assert summary["total"] == 3
     assert (

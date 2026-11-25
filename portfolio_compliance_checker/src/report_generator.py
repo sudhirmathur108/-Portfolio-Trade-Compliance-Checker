@@ -13,6 +13,7 @@ from src.config import (
     REJECTED,
 )
 
+# These columns appear in the same order in both audit reports.
 REPORT_COLUMNS = (
     "trade_row_number",
     "portfolio_id",
@@ -32,10 +33,13 @@ def generate_reports(
     output_directory: Path = OUTPUT_DIRECTORY,
 ) -> tuple[Path, Path]:
     """Write the same ordered audit results to CSV and Excel."""
+    # Create output/ if it has not been created yet.
     output_directory.mkdir(parents=True, exist_ok=True)
+    # Reindex fixes column order and includes blank concentration values.
     frame = pd.DataFrame(results).reindex(columns=REPORT_COLUMNS)
     csv_path = output_directory / "compliance_results.csv"
     excel_path = output_directory / "compliance_results.xlsx"
+    # Do not write Pandas' extra numeric row index into either report.
     frame.to_csv(csv_path, index=False)
     frame.to_excel(excel_path, index=False, engine="openpyxl")
     return csv_path, excel_path
@@ -45,6 +49,7 @@ def build_summary(
     results: list[Mapping[str, Any]],
 ) -> dict[str, Any]:
     """Calculate total and per-portfolio decision counts."""
+    # Start all counters at zero so an empty result list still has a clear summary.
     summary: dict[str, Any] = {
         "total": len(results),
         "approved": 0,
@@ -53,6 +58,7 @@ def build_summary(
         "by_portfolio": {},
     }
     for result in results:
+        # Convert each decision label into the matching overall counter.
         decision = result["decision"]
         if decision == APPROVED:
             key = "approved"
@@ -64,6 +70,7 @@ def build_summary(
             raise ValueError(f"Unknown decision value: {decision}")
         summary[key] += 1
 
+        # Keep a separate set of counts for every portfolio ID.
         portfolio_id = str(result.get("portfolio_id", ""))
         portfolio_summary = summary["by_portfolio"].setdefault(
             portfolio_id,
@@ -79,6 +86,7 @@ def build_summary(
 
 def format_summary(summary: Mapping[str, Any]) -> str:
     """Format summary counts for the command-line application."""
+    # Build readable lines so the same values can be printed as one report.
     lines = [
         f"Total trades processed: {summary['total']}",
         f"Approved: {summary['approved']}",

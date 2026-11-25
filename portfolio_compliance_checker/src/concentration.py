@@ -15,6 +15,7 @@ from src.validators import (
 class ConcentrationResult:
     """Calculated post-trade concentration and whether it breaches the limit."""
 
+    # Keep both the displayed percentage and the exact boundary decision.
     position_pct: Decimal
     exceeds_limit: bool
 
@@ -28,6 +29,7 @@ def calculate_concentration(
     price: Decimal,
 ) -> ConcentrationResult:
     """Calculate post-trade concentration for a validated Buy trade."""
+    # Collect every number used below so Decimal arithmetic has enough precision.
     reference_values = [cash_balance, max_position_pct, quantity, price]
     for holding in reference["current_holdings"]:
         holding_quantity = parse_decimal(holding["quantity"])
@@ -41,14 +43,18 @@ def calculate_concentration(
             reference_values,
             len(reference["current_holdings"]) + 4,
         )
+        # Step 5.1: remove the purchase cost from cash after the buy.
         buy_cost = quantity * price
         post_trade_cash = cash_balance - buy_cost
+        # Step 5.2: include all existing shares plus the shares being purchased.
         post_trade_quantity = (
             held_quantity(reference, trade["security_id"]) + quantity
         )
+        # Step 5.3: value this security using the proposed trade price.
         post_trade_security_value = post_trade_quantity * price
 
         value_of_other_holdings = Decimal("0")
+        # Step 5.4: keep other securities at their own stored market prices.
         for holding in reference["current_holdings"]:
             if holding["security_id"] != trade["security_id"]:
                 holding_quantity = parse_decimal(holding["quantity"])
@@ -59,6 +65,7 @@ def calculate_concentration(
                     )
                 value_of_other_holdings += holding_quantity * market_price
 
+        # Step 5.5: add remaining cash, this position, and all other holdings.
         total_portfolio_value_after = (
             post_trade_cash + post_trade_security_value + value_of_other_holdings
         )
@@ -70,9 +77,10 @@ def calculate_concentration(
                 "total portfolio value after the trade must be positive"
             )
 
+        # Step 5.6: calculate the security's share of the whole portfolio.
         position_pct = post_trade_security_value / total_portfolio_value_after
         # Cross multiplication preserves the strict boundary without relying
-        # on rounded division for the decision.
+        # on rounded division: exactly at the limit is not a breach.
         exceeds_limit = (
             post_trade_security_value
             > max_position_pct * total_portfolio_value_after

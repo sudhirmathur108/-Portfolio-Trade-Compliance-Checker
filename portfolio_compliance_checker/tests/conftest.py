@@ -7,6 +7,7 @@ import pytest
 
 @pytest.fixture
 def portfolio_reference():
+    """Provide safe, synthetic account data shared by the tests."""
     return {
         "cash_balance": Decimal("1000"),
         "restricted_securities": [],
@@ -28,6 +29,7 @@ def portfolio_reference():
 
 @pytest.fixture
 def valid_trade():
+    """Provide one well-formed buy order that tests can customize."""
     return {
         "portfolio_id": "TEST",
         "security_id": "AAA",
